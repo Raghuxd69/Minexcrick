@@ -1,4 +1,4 @@
-// Firebase configuration
+// Firebase Configuration
 const firebaseConfig = {
     apiKey: "AIzaSyBjpFuQ0Mg9KnthmToMXMw_c0tXIBY2rKo",
     authDomain: "mycrick88497.firebaseapp.com",
@@ -12,31 +12,67 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = firebase.initializeApp(firebaseConfig);
-const analytics = firebase.analytics();
 const database = firebase.database();
 
-// Game variables
-let roomCode = '';
-let playerName = '';
-let playerTurn = false;
-let opponentTurn = false;
+// Global Variables
+let playerName;
+let roomCode;
 let roomRef;
+let playerTurn = false;
 
-// Function to create a room
+// Generate a random room code
+function generateRoomCode() {
+    return Math.floor(1000 + Math.random() * 9000).toString();
+}
+
+// Create Room
 function createRoom() {
     playerName = document.getElementById('playerName').value;
     roomCode = generateRoomCode();
-    roomRef = database.ref('rooms/' + roomCode);
 
-    // Set initial room data
+    roomRef = database.ref('rooms/' + roomCode);
     roomRef.set({
         player1: playerName,
         player2: '',
         player1Score: 0,
         player2Score: 0,
         turn: 'player1',
+    }).then(() => {
+        console.log('Room created successfully:', roomCode);
+        updateUIAfterRoomCreation();
+    }).catch((error) => {
+        console.error('Error creating room:', error);
     });
+}
 
+// Join Room
+function joinRoom() {
+    playerName = document.getElementById('playerName').value;
+    roomCode = document.getElementById('roomCodeInput').value;
+
+    roomRef = database.ref('rooms/' + roomCode);
+    roomRef.once('value', (snapshot) => {
+        if (snapshot.exists()) {
+            const roomData = snapshot.val();
+            if (!roomData.player2) {
+                roomRef.update({
+                    player2: playerName,
+                }).then(() => {
+                    console.log('Joined room successfully:', roomCode);
+                    updateUIAfterRoomJoin(roomData);
+                }).catch((error) => {
+                    console.error('Error joining room:', error);
+                });
+            } else {
+                alert('Room is full!');
+            }
+        } else {
+            alert('Room not found!');
+        }
+    });
+}
+
+function updateUIAfterRoomCreation() {
     document.querySelector('.room-container').style.display = 'none';
     document.querySelector('.game-board').style.display = 'block';
     document.getElementById('roomInfo').innerText = `Room: ${roomCode}`;
@@ -45,70 +81,31 @@ function createRoom() {
     setupGame();
 }
 
-// Function to join a room
-function joinRoom() {
-    playerName = document.getElementById('playerName').value;
-    roomCode = document.getElementById('roomCode').value;
-    roomRef = database.ref('rooms/' + roomCode);
-
-    // Listen for room data updates
-    roomRef.on('value', (snapshot) => {
-        const roomData = snapshot.val();
-        if (roomData && !roomData.player2) {
-            roomRef.update({ player2: playerName });
-        }
-
-        document.querySelector('.room-container').style.display = 'none';
-        document.querySelector('.game-board').style.display = 'block';
-        document.getElementById('roomInfo').innerText = `Room: ${roomCode}`;
-        document.getElementById('playerInfo').innerText = `Player: ${playerName}`;
-        playerTurn = roomData.turn === 'player2';
-        opponentTurn = !playerTurn;
-    });
-
-    setupGame();
+function updateUIAfterRoomJoin(roomData) {
+    document.querySelector('.room-container').style.display = 'none';
+    document.querySelector('.game-board').style.display = 'block';
+    document.getElementById('roomInfo').innerText = `Room: ${roomCode}`;
+    document.getElementById('playerInfo').innerText = `Player: ${playerName}`;
+    playerTurn = false; // joiner waits for their turn
+    setupGame(roomData);
 }
 
-// Function to generate room code
-function generateRoomCode() {
-    return Math.random().toString(36).substring(2, 7).toUpperCase();
+function setupGame(roomData = null) {
+    // Set up game logic and listeners here...
+    if (roomData) {
+        // Handle game setup when joining
+        document.getElementById('player1Score').innerText = roomData.player1Score;
+        document.getElementById('player2Score').innerText = roomData.player2Score;
+        document.getElementById('turnInfo').innerText = `Turn: ${roomData.turn}`;
+    }
 }
 
-// Function to set up game logic
-function setupGame() {
-    const runButtons = document.querySelectorAll('.run-btn');
-    runButtons.forEach(button => {
-        button.addEventListener('click', selectRun);
-    });
-
-    // Listen for opponent's move
-    roomRef.child('turn').on('value', (snapshot) => {
-        const turn = snapshot.val();
-        playerTurn = turn === (playerName === 'player1' ? 'player1' : 'player2');
-        opponentTurn = !playerTurn;
-        if (playerTurn) {
-            document.getElementById('scoreBoard').innerText = 'Your turn!';
-        } else {
-            document.getElementById('scoreBoard').innerText = 'Waiting for opponent...';
-        }
-    });
-}
-
-// Function to handle run selection
-function selectRun(event) {
-    const selectedRun = event.target.getAttribute('data-run');
+// Run Selection
+function selectRun(run) {
     if (playerTurn) {
-        const scoreKey = playerTurn ? 'player1Score' : 'player2Score';
-
-        roomRef.update({ [scoreKey]: selectedRun })
-            .then(() => {
-                roomRef.update({ turn: opponentTurn ? 'player2' : 'player1' });
-            });
-
-        playerTurn = false;
-        opponentTurn = true;
-        document.getElementById('scoreBoard').innerText = `You selected ${selectedRun}. Waiting for opponent...`;
-    } else {
-        document.getElementById('scoreBoard').innerText = 'Wait for your turn.';
+        // Game logic for selecting a run
+        console.log(`Player selected run: ${run}`);
+        // Update the game state in Firebase...
+        playerTurn = false; // after selecting, wait for opponent's turn
     }
 }
