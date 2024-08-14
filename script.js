@@ -1,5 +1,4 @@
-// Import Firebase functions using CDN (this is already done in the index.html)
-// Initialize Firebase
+// Firebase configuration
 const firebaseConfig = {
     apiKey: "AIzaSyBjpFuQ0Mg9KnthmToMXMw_c0tXIBY2rKo",
     authDomain: "mycrick88497.firebaseapp.com",
@@ -11,9 +10,10 @@ const firebaseConfig = {
     measurementId: "G-RDSDMX8ZZ9"
 };
 
+// Initialize Firebase
 const app = firebase.initializeApp(firebaseConfig);
-const analytics = firebase.getAnalytics(app);
-const database = firebase.getDatabase(app);
+const analytics = firebase.analytics();
+const database = firebase.database();
 
 // Game variables
 let roomCode = '';
@@ -26,7 +26,7 @@ let roomRef;
 function createRoom() {
     playerName = document.getElementById('playerName').value;
     roomCode = generateRoomCode();
-    roomRef = firebase.database().ref('rooms/' + roomCode);
+    roomRef = database.ref('rooms/' + roomCode);
 
     // Set initial room data
     roomRef.set({
@@ -49,7 +49,7 @@ function createRoom() {
 function joinRoom() {
     playerName = document.getElementById('playerName').value;
     roomCode = document.getElementById('roomCode').value;
-    roomRef = firebase.database().ref('rooms/' + roomCode);
+    roomRef = database.ref('rooms/' + roomCode);
 
     // Listen for room data updates
     roomRef.on('value', (snapshot) => {
@@ -84,7 +84,7 @@ function setupGame() {
     // Listen for opponent's move
     roomRef.child('turn').on('value', (snapshot) => {
         const turn = snapshot.val();
-        playerTurn = turn === playerName;
+        playerTurn = turn === (playerName === 'player1' ? 'player1' : 'player2');
         opponentTurn = !playerTurn;
         if (playerTurn) {
             document.getElementById('scoreBoard').innerText = 'Your turn!';
